@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Inbox - Gmail Client{% endblock %}
+
+{% block content %}
+<div x-data="{ selectedEmails: [], selectAll: false }">
+    <!-- Header -->
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Inbox</h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400">{{ total }} emails</p>
+        </div>
+
+        <!-- Search -->
+        <form action="/inbox" method="get" class="flex gap-2">
+            <input type="hidden" name="category" value="{{ category }}">
+            <input
+                type="text"
+                name="q"
+                value="{{ search or '' }}"
+                placeholder="Search emails..."
+                class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            >
+            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                Search
+            </button>
+        </form>
+    </div>
+
+    <!-- Category Tabs -->
+    <div class="mb-4 border-b border-gray-200 dark:border-gray-700">
+        <nav class="flex space-x-8">
+            {% for cat in ['all', 'primary', 'social', 'promotions', 'updates'] %}
+            <a
+                href="/inbox?category={{ cat }}"
+                class="py-4 px-1 border-b-2 font-medium text-sm {% if category == cat %}border-indigo-500 text-indigo-600 dark:text-indigo-400{% else %}border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300{% endif %}"
+            >
+                {{ cat|title }}
+            </a>
+            {% endfor %}
+        </nav>
+    </div>
+
+    <!-- Bulk Actions -->
+    <form action="/bulk-action" method="post" x-show="selectedEmails.length > 0" x-cloak class="mb-4 p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg flex items-center gap-4">
+        <span class="text-sm text-indigo-700 dark:text-indigo-300" x-text="selectedEmails.length + ' selected'"></span>
+        <template x-for="id in selectedEmails">
+            <input type="hidden" name="email_ids" :value="id">
+        </template>
+        <button type="submit" name="action" value="archive" class="px-3 py-1 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+            Archive
+        </button>
+        <button type="submit" name="action" value="delete" class="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700">
+            Delete
+        </button>
+    </form>
+
+    <!-- Email List -->
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+        {% if emails %}
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                    <th class="w-10 px-4 py-3">
+                        <input
+                            type="checkbox"
+                            @change="selectAll = $event.target.checked; selectedEmails = selectAll ? {{ emails|map(attribute='id')|list|tojson }} : []"
+                            :checked="selectAll"
+                            class="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+                        >
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">From</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Subject</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                {% for email in emails %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer {% if not email.is_read %}bg-blue-50 dark:bg-blue-900/20{% endif %}">
+                    <td class="px-4 py-4" @click.stop>
+                        <input
+                            type="checkbox"
+                            value="{{ email.id }}"
+                            @change="$event.target.checked ? selectedEmails.push('{{ email.id }}') : selectedEmails = selectedEmails.filter(id => id !== '{{ email.id }}')"
+                            :checked="selectedEmails.includes('{{ email.id }}')"
+                            class="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+                        >
+                    </td>
+                    <td class="px-4 py-4" onclick="window.location='/email/{{ email.id }}'">
+                        <div class="text-sm font-medium text-gray-900 dark:text-white {% if not email.is_read %}font-bold{% endif %}">
+                            {{ email.sender }}
+                        </div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">{{ email.sender_email }}</div>
+                    </td>
+                    <td class="px-4 py-4" onclick="window.location='/email/{{ email.id }}'">
+                        <div class="text-sm text-gray-900 dark:text-white {% if not email.is_read %}font-bold{% endif %}">
+                            {{ email.subject[:60] }}{% if email.subject|length > 60 %}...{% endif %}
+                        </div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                            {{ email.snippet[:80] }}{% if email.snippet|length > 80 %}...{% endif %}
+                        </div>
+                    </td>
+                    <td class="px-4 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap" onclick="window.location='/email/{{ email.id }}'">
+                        {{ email.date|format_date }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <div class="px-4 py-3 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600 flex items-center justify-between">
+            <div class="text-sm text-gray-500 dark:text-gray-400">
+                Page {{ page }} of {{ total_pages }}
+            </div>
+            <div class="flex gap-2">
+                {% if page > 1 %}
+                <a href="/inbox?category={{ category }}&page={{ page - 1 }}{% if search %}&q={{ search }}{% endif %}" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300">
+                    Previous
+                </a>
+                {% endif %}
+                {% if page < total_pages %}
+                <a href="/inbox?category={{ category }}&page={{ page + 1 }}{% if search %}&q={{ search }}{% endif %}" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300">
+                    Next
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="p-8 text-center">
+            <p class="text-gray-500 dark:text-gray-400 mb-4">No emails found</p>
+            <button @click="syncEmails()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                Sync Emails
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

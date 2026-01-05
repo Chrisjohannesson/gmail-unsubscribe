@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}{{ email.subject }} - Gmail Client{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Back Button -->
+    <a href="/inbox" class="inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        Back to Inbox
+    </a>
+
+    <!-- Email Container -->
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+        <!-- Header -->
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex justify-between items-start">
+                <div class="flex-1">
+                    <h1 class="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                        {{ email.subject }}
+                    </h1>
+                    <div class="flex items-center gap-4 text-sm">
+                        <div>
+                            <span class="text-gray-500 dark:text-gray-400">From:</span>
+                            <span class="font-medium text-gray-900 dark:text-white">{{ email.sender }}</span>
+                            <span class="text-gray-500 dark:text-gray-400">&lt;{{ email.sender_email }}&gt;</span>
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        {{ email.date|format_datetime }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-2 mt-4">
+                <form action="/email/{{ email.id }}/archive" method="post" class="inline">
+                    <button type="submit" class="px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600">
+                        Archive
+                    </button>
+                </form>
+                <form action="/email/{{ email.id }}/delete" method="post" class="inline" onsubmit="return confirm('Delete this email?')">
+                    <button type="submit" class="px-4 py-2 text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50">
+                        Delete
+                    </button>
+                </form>
+                {% if email.unsubscribe_url %}
+                <a href="{{ email.unsubscribe_url }}" target="_blank" rel="noopener" class="px-4 py-2 text-sm bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-900/50">
+                    Unsubscribe
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Body -->
+        <div class="p-6">
+            {% if email.body_html %}
+            <div class="prose dark:prose-invert max-w-none">
+                <iframe
+                    id="email-frame"
+                    class="w-full border-0"
+                    style="min-height: 500px;"
+                    srcdoc="{{ email.body_html|e }}"
+                    sandbox="allow-same-origin"
+                ></iframe>
+            </div>
+            {% elif email.body_text %}
+            <pre class="whitespace-pre-wrap text-gray-900 dark:text-white font-mono text-sm">{{ email.body_text }}</pre>
+            {% else %}
+            <p class="text-gray-500 dark:text-gray-400">No content available</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-resize iframe to fit content
+    document.addEventListener('DOMContentLoaded', function() {
+        const iframe = document.getElementById('email-frame');
+        if (iframe) {
+            iframe.onload = function() {
+                try {
+                    const height = iframe.contentWindow.document.body.scrollHeight;
+                    iframe.style.height = Math.max(height + 50, 300) + 'px';
+                } catch (e) {
+                    // Cross-origin restriction, use default height
+                    iframe.style.height = '600px';
+                }
+            };
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,29 @@
+# Credentials (NEVER commit these)
+credentials.json
+token.json
+
+# Database
+*.db
+
+# Generated data (may contain personal info)
+unsubscribe_links.csv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
