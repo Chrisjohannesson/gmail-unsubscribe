@@ -203,6 +203,74 @@
         <span>{{ senders|rejectattr('unsubscribe_url')|list|length }} no link</span>
     </div>
     {% endif %}
+
+    <!-- Job History -->
+    {% if recent_jobs %}
+    <div class="mt-8">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Job History</h2>
+        <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Progress</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Results</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for job in recent_jobs %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td class="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                            {{ job.created_at|format_datetime }}
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if job.status == 'completed' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                                Completed
+                            </span>
+                            {% elif job.status == 'running' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                                Running
+                            </span>
+                            {% elif job.status == 'failed' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
+                                Failed
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                Pending
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                            {{ job.completed_items }}/{{ job.total_items }}
+                        </td>
+                        <td class="px-4 py-3 text-sm">
+                            <span class="text-green-600 dark:text-green-400">{{ job.successful_items }} ok</span>
+                            <span class="mx-1 text-gray-400">/</span>
+                            <span class="text-red-600 dark:text-red-400">{{ job.failed_items }} failed</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm">
+                            {% if job.failed_items > 0 and job.status != 'running' %}
+                            <button @click="retryJob('{{ job.id }}')"
+                                    class="text-indigo-600 dark:text-indigo-400 hover:underline">
+                                Retry Failed
+                            </button>
+                            {% elif job.status == 'running' %}
+                            <span class="text-gray-400">Processing...</span>
+                            {% else %}
+                            <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 
@@ -329,6 +397,27 @@ function unsubscribeManager() {
                     console.error('Polling error:', e);
                 }
             }, 1000);
+        },
+
+        async retryJob(jobId) {
+            try {
+                const response = await fetch(`/api/jobs/${jobId}/retry`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.retried > 0) {
+                    // Start polling for the retried job
+                    this.startPolling();
+                    // Reload page to show updated job status
+                    window.location.href = '/unsubscribe?processing=true';
+                } else {
+                    alert(data.message || 'No items to retry');
+                }
+            } catch (e) {
+                console.error('Retry error:', e);
+                alert('Failed to retry job');
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ SQLite Database for Email Caching
 Caches email metadata for fast browsing without hitting Gmail API.
 """
 
+import os
 import sqlite3
 import aiosqlite
 from pathlib import Path
@@ -14,7 +15,7 @@ from dataclasses import asdict
 from gmail_client import Email
 
 PROJECT_DIR = Path(__file__).parent
-DB_FILE = PROJECT_DIR / 'emails.db'
+DB_FILE = Path(os.getenv("DB_PATH", str(PROJECT_DIR / 'emails.db')))
 
 
 def init_db():
@@ -62,6 +63,43 @@ def init_db():
             content_rowid=rowid
         )
     ''')
+
+    # Jobs table for tracking unsubscribe runs
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS jobs (
+            id TEXT PRIMARY KEY,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT,
+            started_at TEXT,
+            completed_at TEXT,
+            total_items INTEGER DEFAULT 0,
+            completed_items INTEGER DEFAULT 0,
+            successful_items INTEGER DEFAULT 0,
+            failed_items INTEGER DEFAULT 0
+        )
+    ''')
+
+    # Job items table for individual unsubscribe attempts
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS job_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_id TEXT,
+            sender TEXT,
+            sender_email TEXT,
+            unsubscribe_url TEXT,
+            unsubscribe_mailto TEXT,
+            method_attempted TEXT,
+            status TEXT DEFAULT 'pending',
+            error_message TEXT,
+            attempted_at TEXT,
+            retry_count INTEGER DEFAULT 0,
+            FOREIGN KEY (job_id) REFERENCES jobs(id)
+        )
+    ''')
+
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_job_items_job_id ON job_items(job_id)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status)')
+
     conn.commit()
     conn.close()
 

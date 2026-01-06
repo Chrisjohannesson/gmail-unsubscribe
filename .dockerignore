@@ -1,0 +1,38 @@
+# Credentials (mount at runtime)
+credentials.json
+token.json
+
+# Database (use volume)
+*.db
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+IMPLEMENTATION_PLAN.md
+
+# Generated files
+unsubscribe_links.csv
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gmail-unsubscribe
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      # Persist database
+      - ./data:/data
+      # Mount credentials (required for Gmail API)
+      - ./credentials.json:/app/credentials.json:ro
+      - ./token.json:/app/token.json
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DB_PATH=/data/emails.db
+      # Chrome settings for container
+      - CHROME_BIN=/usr/bin/chromium
+      - CHROMEDRIVER_PATH=/usr/bin/chromedriver
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
